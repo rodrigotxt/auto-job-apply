@@ -1,38 +1,34 @@
 from unittest.mock import MagicMock
 
+import pytest
+
+import auto_job_apply
 from auto_job_apply import apply
 
 
-def test_apply_inhire_mocked():
-    # Mock do BrowserEngine
-    mock_engine = MagicMock()
+@pytest.fixture
+def mock_engine(monkeypatch):
+    engine = MagicMock()
+    monkeypatch.setattr(auto_job_apply, "BrowserEngine", lambda **kwargs: engine)
+    return engine
 
-    # Dados de teste
-    dados = {"nome": "Rodrigo", "email": "rodrigo@exemplo.com"}
+
+def test_apply_inhire_mocked(mock_engine):
+    dados = {"nome": "Rodrigo Exemplo", "email": "rodrigo@exemplo.com"}
     curriculo = "caminho/do/curriculo.pdf"
     url = "https://inhire.com/vaga/1"
 
-    # Chamada (aqui precisaríamos mockar o BrowserEngine dentro da apply ou mudar a injeção)
-    # Como a apply instancia o engine, vamos mockar a classe Engine na função apply
+    resultado = apply("inhire", url, dados, curriculo)
 
-    import auto_job_apply
-
-    original_engine = auto_job_apply.BrowserEngine
-    auto_job_apply.BrowserEngine = lambda **kwargs: mock_engine
-
-    try:
-        resultado = apply("inhire", url, dados, curriculo)
-
-        # Validações
-        assert resultado is True
-        mock_engine.navigate.assert_called_with(url)
-
-    finally:
-        auto_job_apply.BrowserEngine = original_engine
+    assert resultado is True
+    mock_engine.navigate.assert_called_with(url)
 
 
-def test_apply_invalid_site():
-    try:
+def test_apply_requer_nome_completo(mock_engine):
+    with pytest.raises(ValueError, match="nome e sobrenome"):
+        apply("inhire", "https://inhire.com/vaga/1", {"nome": "Rodrigo"}, "curriculo.pdf")
+
+
+def test_apply_site_invalido():
+    with pytest.raises(ValueError, match="não registrado"):
         apply("site_invalido", "http://x.com", {}, "")
-    except ValueError as e:
-        assert str(e) == "Site 'site_invalido' não registrado no sistema."
