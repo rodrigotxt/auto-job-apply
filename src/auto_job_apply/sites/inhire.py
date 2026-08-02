@@ -79,8 +79,19 @@ def _avancar(engine: BrowserEngine):
     time.sleep(2)
 
 
+def _notificar_sucesso(engine: BrowserEngine):
+    """Dispara alerta de sucesso sem enviar a candidatura (modo debug)."""
+    # Handler vazio mantém o alert aberto até o navegador fechar
+    engine.page.on("dialog", lambda dialog: None)
+    engine.evaluate("setTimeout(() => alert('Vaga preenchida com sucesso! Confira.'), 0)")
+
+
 def _submeter(engine: BrowserEngine):
-    """Tenta enviar o formulário pelos seletores conhecidos."""
+    """Envia a candidatura. Em modo debug, apenas notifica sem enviar."""
+    if engine.debug:
+        logger.info("Modo debug ativado: candidatura NÃO será enviada.")
+        _notificar_sucesso(engine)
+        return
     for sel in _SELETORES_SUBMIT:
         try:
             engine.click(sel)
