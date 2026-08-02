@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: auto-job-apply
+Version: 0.1.0
+Summary: Biblioteca para automação de candidaturas
+License-File: LICENSE
+Requires-Dist: playwright
+Requires-Dist: pyyaml
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Dynamic: license-file

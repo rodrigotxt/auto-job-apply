@@ -1,0 +1,10 @@
+.venv/
+.pytest_cache/
+__pycache__/
+AGENTS.md
+SOUL.md
+TOOLS.md
+USER.md
+IDENTITY.md
+HEARTBEAT.md
+openclaw-workspace-state.json
