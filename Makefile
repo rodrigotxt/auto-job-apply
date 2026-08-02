@@ -6,7 +6,7 @@ help:
 	@echo "  make test        - Roda todos os testes unitários com pytest"
 	@echo "  make lint        - Roda ruff para análise de código"
 	@echo "  make add-site NAME=<nome> - Cria scaffold para um novo site"
-	@echo "  make apply SITE=<nome> URL=<url> [DEBUG=1] - Roda automação (DEBUG=1: browser visível, delay 3s, aberto 15s ao final)"
+	@echo "  make apply SITE=<nome> URL=<url> [DEBUG=1] - Roda automação (DEBUG=1: browser visível, delay 2s, aberto 10s ao final)"
 	@echo "  make help        - Mostra esta ajuda"
 
 up:
@@ -40,6 +40,6 @@ apply:
 	fi
 	@echo "import logging; logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s'); from auto_job_apply import apply; import yaml; \
 	dados = yaml.safe_load(open('assets/dados-de-candidatura.yaml')); \
-	apply('$(SITE)', '$(URL)', dados, 'assets/curriculo.pdf', debug=$(if $(DEBUG),True,False), delay=3)" > temp_run.py
+	apply('$(SITE)', '$(URL)', dados, 'assets/curriculo.pdf', debug=$(if $(DEBUG),True,False), delay=2)" > temp_run.py
 	. .venv/bin/activate && python3 temp_run.py
 	@rm temp_run.py

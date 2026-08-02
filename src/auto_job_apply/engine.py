@@ -12,7 +12,7 @@ class BrowserEngine:
         headless: bool = False,
         debug: bool = False,
         delay: float = 0.0,
-        max_attempts: int = 5,
+        max_attempts: int = 3,
         retry_delay: float = 1.0,
     ):
         self.headless = headless
@@ -44,7 +44,7 @@ class BrowserEngine:
                     time.sleep(self.retry_delay)
         raise last_error
 
-    def wait_before_close(self, seconds: float = 15.0):
+    def wait_before_close(self, seconds: float = 10.0):
         """Mantém o navegador aberto por alguns segundos (modo debug, browser visível)."""
         if not self.headless:
             time.sleep(seconds)

@@ -20,7 +20,7 @@ def apply(
         url_vaga: URL da vaga.
         dados: dict com os dados do candidato.
         curriculo_path: caminho do arquivo de currículo (PDF).
-        debug: se True, mantém o navegador visível e aberto ao final (15s).
+        debug: se True, mantém o navegador visível e aberto ao final (10s).
         delay: pausa em segundos após cada interação com o formulário.
     """
     if site not in SITES_REGISTRY:

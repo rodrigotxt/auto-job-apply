@@ -38,8 +38,8 @@ Envia a candidatura de verdade. Os dados do candidato vêm de `assets/dados-de-c
 make apply SITE=inhire URL=<url> DEBUG=1
 ```
 
-- Navegador **visível**, com delay de 3s por campo preenchido.
-- **Não envia a candidatura**: ao final dispara `alert('Vaga preenchida com sucesso! Confira.')` e mantém o navegador aberto por 15s.
+- Navegador **visível**, com delay de 2s por campo preenchido.
+- **Não envia a candidatura**: ao final dispara `alert('Vaga preenchida com sucesso! Confira.')` e mantém o navegador aberto por 10s.
 - Útil para validar o fluxo e conferir os campos antes de um envio real.
 
 ### Testes e lint
@@ -67,7 +67,7 @@ src/auto_job_apply/
 └── sites/           # um arquivo por site (gupy, inhire, ...)
 ```
 
-- **`engine.py`** — abstrai o Playwright: `click`, `fill_field`, `force_upload`, `check`, `type_text`, `evaluate`, `campo_por_label`, `relatorio_campos_nao_preenchidos`. Todas as interações têm retry limitado (5 tentativas, 1s entre elas).
+- **`engine.py`** — abstrai o Playwright: `click`, `fill_field`, `force_upload`, `check`, `type_text`, `evaluate`, `campo_por_label`, `relatorio_campos_nao_preenchidos`. Todas as interações têm retry limitado (3 tentativas, 1s entre elas).
 - **`registry.py`** — mapeamento explícito nome do site → função executor. Novo site = novo arquivo + registro (nunca convenção por nome de arquivo).
 - **`sites/*.py`** — implementam `apply_<site>(engine, url_vaga, dados, curriculo_path) -> bool`.
 
@@ -122,7 +122,7 @@ Cada campo é preenchido em camadas, nesta ordem:
 
 1. **Seletores candidatos** — lista de seletores por campo, em ordem de preferência (`_CAMPOS` no site).
 2. **Fuzzy por label** — se nenhum seletor casar, busca o campo pelo texto visível do label/placeholder/aria-label.
-3. **Retry** — toda interação tenta até 5 vezes com 1s de espera (campos que renderizam após interação, ex.: dropdown que só existe depois de abrir).
+3. **Retry** — toda interação tenta até 3 vezes com 1s de espera (campos que renderizam após interação, ex.: dropdown que só existe depois de abrir).
 4. **Fallback JS** — elementos realmente ocultos (checkbox/dropdown estilizados) são acionados via JavaScript.
 5. **Relatório final** — sempre roda (até em erro, via `finally`) e lista o que ficou vazio.
 
