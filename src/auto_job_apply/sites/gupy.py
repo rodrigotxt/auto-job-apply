@@ -1,5 +1,6 @@
-from ..registry import register_site
 from ..engine import BrowserEngine
+from ..registry import register_site
+
 
 @register_site("gupy")
 def apply_gupy(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_path: str) -> bool:
