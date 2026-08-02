@@ -48,16 +48,13 @@ def _selecionar_cidade(engine: BrowserEngine, cidade_alvo: str):
     engine.click("#districtBr")
     time.sleep(0.3)
     engine.fill_field("div[data-component-name='DropdownOptionsSearch'] input", cidade_alvo)
-    time.sleep(0.3)
-    opcao_exata = f"button[data-component-name='DropdownOption'][data-option-value='{cidade_alvo}']"
-    try:
-        engine.click(opcao_exata)
-    except Exception:
-        # Tenta a primeira opção da lista de resultados
-        engine.click(
-            "div[data-component-name='DropdownOptionsList'] "
-            "button[data-component-name='DropdownOption']"
-        )
+    time.sleep(0.5)
+    # Clica na primeira opção da lista de resultados (texto pode ter acentos)
+    engine.click(
+        "div[data-component-name='DropdownOptionsList'] "
+        "button[data-component-name='DropdownOption']",
+        force=True,
+    )
 
 
 def _preencher_pretensao_salarial(engine: BrowserEngine, valor: str):
@@ -70,15 +67,18 @@ def _preencher_pretensao_salarial(engine: BrowserEngine, valor: str):
 
 
 def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
-    """Seleciona o radio 'Disponibilidade para trabalho presencial' (workModel)."""
+    """Seleciona o radio 'Disponibilidade para trabalho presencial' (workModel).
+
+    O input é estilizado e um <span> intercepta o clique: usa force=True.
+    """
     radio_value = "true" if valor == "Sim" else "false"
-    engine.click(f"input[name='workModel'][value='{radio_value}']")
+    engine.click(f"input[name='workModel'][value='{radio_value}']", force=True)
 
 
 def _avancar(engine: BrowserEngine):
     """Avança para a próxima aba; força via JS se o botão estiver desabilitado."""
     try:
-        engine.click("button:has-text('Avançar')")
+        engine.click("button:has-text('Avançar')", attempts=2)
     except Exception:
         logger.warning("'Avançar' não habilitado; forçando via JS...")
         # :has-text não é seletor CSS válido no browser — usar XPath
@@ -99,11 +99,11 @@ def _avancar(engine: BrowserEngine):
     time.sleep(2)
 
 
-def _notificar_sucesso(engine: BrowserEngine):
-    """Dispara alerta de sucesso sem enviar a candidatura (modo debug)."""
-    # Handler vazio mantém o alert aberto até o navegador fechar
-    engine.page.on("dialog", lambda dialog: None)
-    engine.evaluate("setTimeout(() => alert('Vaga preenchida com sucesso! Confira.'), 0)")
+def _marcar_privacidade(engine: BrowserEngine):
+    if not engine.exists("#privacyPolicy"):
+        logger.warning("[privacidade] checkbox não encontrado; ignorado.")
+        return
+    engine.check("#privacyPolicy")
 
 
 def _submeter(engine: BrowserEngine):
@@ -127,21 +127,36 @@ def _submeter(engine: BrowserEngine):
     )
 
 
+def _notificar_sucesso(engine: BrowserEngine):
+    """Dispara alerta de sucesso sem enviar a candidatura (modo debug)."""
+    # Handler vazio mantém o alert aberto até o navegador fechar
+    engine.page.on("dialog", lambda dialog: None)
+    engine.evaluate("setTimeout(() => alert('Vaga preenchida com sucesso! Confira.'), 0)")
+
+
 def selecionar_react_dropdown(
     engine: BrowserEngine, dropdown_id: str, texto_opcao: str, label: str = "dropdown"
 ):
     """Seleciona opção em dropdown React (react-dropdown-select)."""
     css_id = dropdown_id.replace(".", "\\.")
-    engine.click(f"#{css_id} .react-dropdown-select")
+    trigger_sel = f"#{css_id} .react-dropdown-select"
+    if not engine.exists(trigger_sel):
+        logger.warning(f"[{label}] Dropdown não encontrado; ignorado.")
+        return
+    engine.click(trigger_sel, force=True)
     time.sleep(0.4)
-    engine.click(f"button[aria-label='{texto_opcao}']")
+    engine.click(f"button[aria-label='{texto_opcao}']", force=True)
     time.sleep(0.3)
     logger.info(f"[{label}] Opção '{texto_opcao}' selecionada.")
 
 
 def marcar_checkbox_por_texto(engine: BrowserEngine, texto: str, label: str = "checkbox"):
     """Marca checkbox cujo label contenha o texto exato."""
-    engine.click(f"label:has-text('{texto}') input[type='checkbox']")
+    selector = f"label:has-text('{texto}') input[type='checkbox']"
+    if not engine.exists(selector):
+        logger.warning(f"[{label}] Checkbox não encontrado; ignorado.")
+        return
+    engine.check(selector)
     logger.info(f"[{label}] Checkbox '{texto}' marcado.")
 
 
@@ -162,7 +177,8 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
         label="cpf",
     )
     _opcional(
-        lambda: engine.fill_field("input[name='email']", dados.get("email", "")), label="email"
+        lambda: engine.fill_field("input[name='email']", dados.get("email", "")),
+        label="email",
     )
     _opcional(
         lambda: engine.fill_field("input[name='phone']", _so_digitos(dados.get("telefone", ""))),
@@ -175,7 +191,8 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
 
     _opcional(lambda: _selecionar_pais(engine), label="pais")
     _opcional(
-        lambda: _selecionar_cidade(engine, dados.get("cidade", "Sao Jose - SC")), label="cidade"
+        lambda: _selecionar_cidade(engine, dados.get("cidade", "Sao Jose - SC")),
+        label="cidade",
     )
 
     _opcional(
@@ -186,11 +203,13 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
     pretensao = _so_digitos(dados.get("pretensao_salarial", ""))
     if pretensao:
         _opcional(
-            lambda: _preencher_pretensao_salarial(engine, pretensao), label="pretensao-salarial"
+            lambda: _preencher_pretensao_salarial(engine, pretensao),
+            label="pretensao-salarial",
         )
 
     _opcional(
-        lambda: engine.click("input[name='isIndication'][value='false']"), label="indicacao-nao"
+        lambda: engine.click("input[name='isIndication'][value='false']", force=True),
+        label="indicacao-nao",
     )
 
     if curriculo_path:
@@ -203,7 +222,8 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
 
     # Aba diversidade — tudo opcional, "Prefiro não responder" por padrão
     _opcional(
-        lambda: marcar_checkbox_por_texto(engine, "Prefiro não responder"), label="diversityGroup"
+        lambda: marcar_checkbox_por_texto(engine, "Prefiro não responder"),
+        label="diversityGroup",
     )
     _opcional(
         lambda: selecionar_react_dropdown(
@@ -228,7 +248,7 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
         label="pcd",
     )
 
-    _opcional(lambda: engine.click("#privacyPolicy"), label="privacidade")
+    _opcional(lambda: _marcar_privacidade(engine), label="privacidade")
     time.sleep(0.5)
 
     _submeter(engine)

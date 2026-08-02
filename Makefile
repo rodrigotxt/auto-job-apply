@@ -38,7 +38,7 @@ apply:
 	@if [ ! -f "assets/curriculo.pdf" ]; then \
 		echo "Aviso: assets/curriculo.pdf não encontrado. O upload falhará."; \
 	fi
-	@echo "from auto_job_apply import apply; import yaml; \
+	@echo "import logging; logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s'); from auto_job_apply import apply; import yaml; \
 	dados = yaml.safe_load(open('assets/dados-de-candidatura.yaml')); \
 	apply('$(SITE)', '$(URL)', dados, 'assets/curriculo.pdf', debug=$(if $(DEBUG),True,False), delay=3)" > temp_run.py
 	. .venv/bin/activate && python3 temp_run.py

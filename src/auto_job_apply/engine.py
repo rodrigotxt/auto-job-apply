@@ -30,16 +30,17 @@ class BrowserEngine:
         if self.delay > 0:
             time.sleep(self.delay)
 
-    def _retry(self, fn, *args, **kwargs):
+    def _retry(self, fn, max_attempts=None):
         """Executa fn com até max_attempts tentativas, aguardando retry_delay entre elas."""
+        attempts = max_attempts or self.max_attempts
         last_error = None
-        for attempt in range(1, self.max_attempts + 1):
+        for attempt in range(1, attempts + 1):
             try:
-                return fn(*args, **kwargs)
+                return fn()
             except Exception as e:  # noqa: BLE001 - retry genérico de interação com a página
                 last_error = e
-                if attempt < self.max_attempts:
-                    logger.warning(f"Tentativa {attempt}/{self.max_attempts} falhou: {e}")
+                if attempt < attempts:
+                    logger.warning(f"Tentativa {attempt}/{attempts} falhou: {e}")
                     time.sleep(self.retry_delay)
         raise last_error
 
@@ -55,6 +56,13 @@ class BrowserEngine:
 
     def navigate(self, url: str):
         self.page.goto(url)
+
+    def exists(self, selector: str) -> bool:
+        """Verifica se o elemento existe no DOM (sem esperar visibilidade)."""
+        try:
+            return self.page.locator(selector).count() > 0
+        except Exception:  # noqa: BLE001 - seletor inválido conta como inexistente
+            return False
 
     def wait_for_selector(self, selector: str, timeout: int = 1000):
         """Espera o elemento aparecer, com até max_attempts tentativas."""
@@ -73,13 +81,26 @@ class BrowserEngine:
         self._retry(_fill)
         self._pause()
 
-    def click(self, selector: str):
-        """Clica em um elemento com retry limitado."""
+    def click(self, selector: str, force: bool = False, attempts: int | None = None):
+        """Clica em um elemento com retry limitado.
+
+        force=True ignora actionability checks (útil quando um <span> estilizado
+        intercepta o clique ou o input é visualmente oculto).
+        """
 
         def _click():
-            self.page.click(selector, timeout=3000)
+            self.page.click(selector, timeout=3000, force=force)
 
-        self._retry(_click)
+        self._retry(_click, max_attempts=attempts)
+        self._pause()
+
+    def check(self, selector: str):
+        """Marca checkbox/radio mesmo se oculto (force)."""
+
+        def _check():
+            self.page.check(selector, force=True, timeout=3000)
+
+        self._retry(_check)
         self._pause()
 
     def type_text(self, selector: str, value: str, delay: float = 80):
