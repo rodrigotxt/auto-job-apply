@@ -16,8 +16,20 @@ class BrowserEngine:
     def navigate(self, url: str):
         self.page.goto(url)
 
+    def wait_for_selector(self, selector: str, timeout: int = 5000):
+        self.page.wait_for_selector(selector, timeout=timeout)
+
     def fill_field(self, selector: str, value: str):
+        self.wait_for_selector(selector)
         self.page.fill(selector, value)
 
     def click(self, selector: str):
+        self.wait_for_selector(selector)
         self.page.click(selector)
+
+    def upload_file(self, selector: str, file_path: str):
+        self.wait_for_selector(selector)
+        self.page.set_input_files(selector, file_path)
+
+    def screenshot(self, path: str):
+        self.page.screenshot(path=path)
