@@ -11,6 +11,7 @@ def mock_engine(monkeypatch):
     engine = MagicMock()
     engine.debug = False
     engine.page = MagicMock()
+    engine.relatorio_campos_nao_preenchidos.return_value = []
     monkeypatch.setattr(auto_job_apply, "BrowserEngine", lambda **kwargs: engine)
     return engine
 
@@ -49,6 +50,13 @@ def test_apply_debug_nao_submete(mock_engine):
 def test_apply_requer_nome_completo(mock_engine):
     with pytest.raises(ValueError, match="nome e sobrenome"):
         apply("inhire", "https://inhire.com/vaga/1", {"nome": "Rodrigo"}, "curriculo.pdf")
+
+
+def test_apply_campo_obrigatorio_nao_encontrado(mock_engine):
+    # Nenhum seletor existe na página
+    mock_engine.exists.side_effect = lambda sel: False
+    with pytest.raises(ValueError, match="CAMPO-NAO-ENCONTRADO"):
+        apply("inhire", "https://inhire.com/vaga/1", {"nome": "Rodrigo Exemplo"}, "curriculo.pdf")
 
 
 def test_apply_site_invalido():

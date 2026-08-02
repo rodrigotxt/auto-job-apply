@@ -64,6 +64,62 @@ class BrowserEngine:
         except Exception:  # noqa: BLE001 - seletor inválido conta como inexistente
             return False
 
+    def campo_por_label(self, texto: str) -> str | None:
+        """Busca um campo cujo label/aria-label/placeholder contenha o texto (case-insensitive)."""
+        candidatos = [
+            f"label:has-text('{texto}') input",
+            f"label:has-text('{texto}') textarea",
+            f"[aria-label*='{texto}' i]",
+            f"input[placeholder*='{texto}' i]",
+            f"textarea[placeholder*='{texto}' i]",
+        ]
+        for sel in candidatos:
+            try:
+                if self.page.locator(sel).count() > 0:
+                    return sel
+            except Exception:  # noqa: BLE001 - seletor inválido, tenta próximo
+                continue
+        return None
+
+    def relatorio_campos_nao_preenchidos(self) -> list[dict]:
+        """Lista campos visíveis que estão vazios (para diagnóstico/IA)."""
+        try:
+            return self.page.evaluate(
+                """() => {
+                  const out = [];
+                  const vistos = new Set();
+                  document.querySelectorAll('input, textarea, select').forEach(el => {
+                    const r = el.getBoundingClientRect();
+                    if (r.width === 0 && r.height === 0) return;  // oculto
+                    if (el.type === 'radio' || el.type === 'checkbox') return;
+                    if (el.name) {
+                      if (vistos.has(el.name)) return;
+                      vistos.add(el.name);
+                    }
+                    const vazio = (el.value ?? '').trim() === '';
+                    if (!vazio) return;
+                    const label = (
+                      el.closest('label')?.textContent
+                      || el.getAttribute('aria-label')
+                      || el.placeholder
+                      || ''
+                    ).trim().slice(0, 120);
+                    out.push({
+                      tag: el.tagName.toLowerCase(),
+                      type: el.type,
+                      name: el.name || null,
+                      id: el.id || null,
+                      required: !!el.required || el.getAttribute('aria-required') === 'true',
+                      label,
+                    });
+                  });
+                  return out;
+                }"""
+            )
+        except Exception as e:  # noqa: BLE001 - relatório é best-effort
+            logger.warning(f"[RELATORIO] falha ao inspecionar campos: {e}")
+            return []
+
     def wait_for_selector(self, selector: str, timeout: int = 1000):
         """Espera o elemento aparecer, com até max_attempts tentativas."""
 
