@@ -63,7 +63,7 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
 
     # Upload de currículo
     if curriculo_path:
-        engine.upload_file("input[type='file'][name='resume']", curriculo_path)
+        engine.force_upload("input[type='file'][name='resume']", curriculo_path)
 
     # Avançar
     engine.click("button:has-text('Avançar')")

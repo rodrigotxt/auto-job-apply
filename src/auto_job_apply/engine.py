@@ -1,7 +1,7 @@
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 
 class BrowserEngine:
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = False):
         self.headless = headless
         self.playwright = sync_playwright().start()
         self.browser: Browser = self.playwright.chromium.launch(headless=self.headless)
@@ -27,9 +27,9 @@ class BrowserEngine:
         self.wait_for_selector(selector)
         self.page.click(selector)
 
-    def upload_file(self, selector: str, file_path: str):
-        self.wait_for_selector(selector)
-        self.page.set_input_files(selector, file_path)
+    def force_upload(self, selector: str, file_path: str):
+        self.page.evaluate(f"document.querySelector('{selector}').style.display='block'")
+        self.upload_file(selector, file_path)
 
     def screenshot(self, path: str):
         self.page.screenshot(path=path)
