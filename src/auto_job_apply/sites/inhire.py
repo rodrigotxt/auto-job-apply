@@ -2,6 +2,7 @@ import logging
 import time
 
 from ..engine import BrowserEngine
+from ..progresso import STATUS_PROCESSING
 from ..registry import register_site
 
 logger = logging.getLogger(__name__)
@@ -80,14 +81,21 @@ def _log_campo(chave: str, status: str, detalhe: str = ""):
     logger.info(f"[CAMPO] {chave} | status={status} | {detalhe}".rstrip(" |"))
 
 
+def _emitir_campo(engine: BrowserEngine, chave: str, status: str, seletor: str | None = None):
+    """Emite evento de progresso de um campo (etapa='campo')."""
+    engine.emitir(STATUS_PROCESSING, "campo", campo=chave, status_campo=status, seletor=seletor)
+
+
 def _preencher_campo(engine: BrowserEngine, chave: str, valor: str, obrigatorio: bool = False):
     """Preenche um campo de texto com fallback de seletores e log estruturado."""
     if not valor:
         _log_campo(chave, "ignorado-valor-vazio")
+        _emitir_campo(engine, chave, "ignorado-valor-vazio")
         return
     seletor = _resolver_campo(engine, chave)
     if seletor is None:
         msg = f"[CAMPO-NAO-ENCONTRADO] {chave} | valor='{valor}' | obrigatorio={obrigatorio}"
+        _emitir_campo(engine, chave, "nao-encontrado")
         if obrigatorio:
             logger.error(msg)
             raise CampoNaoEncontradoError(msg)
@@ -96,8 +104,10 @@ def _preencher_campo(engine: BrowserEngine, chave: str, valor: str, obrigatorio:
     try:
         engine.fill_field(seletor, valor)
         _log_campo(chave, "ok", f"seletor={seletor}")
+        _emitir_campo(engine, chave, "ok", seletor=seletor)
     except Exception as e:
         msg = f"[ERRO-CAMPO] {chave} | seletor={seletor} | erro={e}"
+        _emitir_campo(engine, chave, "erro", seletor=seletor)
         if obrigatorio:
             logger.error(msg)
             raise
@@ -108,6 +118,7 @@ def _selecionar_pais(engine: BrowserEngine):
     seletor = _resolver_campo(engine, "pais")
     if seletor is None:
         logger.warning("[CAMPO] pais | status=nao-encontrado")
+        _emitir_campo(engine, "pais", "nao-encontrado")
         return
     try:
         engine.click(seletor)
@@ -115,8 +126,10 @@ def _selecionar_pais(engine: BrowserEngine):
         engine.click("[data-option-value='BR']", force=True)
         time.sleep(1)
         _log_campo("pais", "ok")
+        _emitir_campo(engine, "pais", "ok", seletor=seletor)
     except Exception as e:
         logger.warning(f"[CAMPO] pais | status=erro | erro={e}")
+        _emitir_campo(engine, "pais", "erro", seletor=seletor)
 
 
 def _selecionar_cidade(engine: BrowserEngine, cidade_alvo: str):
@@ -129,6 +142,7 @@ def _selecionar_cidade(engine: BrowserEngine, cidade_alvo: str):
         time.sleep(1)
     if gatilho is None:
         logger.warning("[CAMPO] cidade | status=nao-encontrado (gatilho)")
+        _emitir_campo(engine, "cidade", "nao-encontrado")
         return
     try:
         engine.click(gatilho)
@@ -142,23 +156,28 @@ def _selecionar_cidade(engine: BrowserEngine, cidade_alvo: str):
             time.sleep(0.5)
         if busca is None:
             logger.warning("[CAMPO] cidade | status=erro | busca não apareceu")
+            _emitir_campo(engine, "cidade", "erro", seletor=gatilho)
             return
         engine.fill_field(busca, cidade_alvo)
         time.sleep(0.5)
         primeira = _resolver_campo(engine, "cidade_primeira_opcao")
         if primeira is None:
             logger.warning("[CAMPO] cidade | status=erro | lista de opções não apareceu")
+            _emitir_campo(engine, "cidade", "erro", seletor=gatilho)
             return
         engine.click(primeira, force=True)
         _log_campo("cidade", "ok", f"valor='{cidade_alvo}'")
+        _emitir_campo(engine, "cidade", "ok", seletor=gatilho)
     except Exception as e:
         logger.warning(f"[CAMPO] cidade | status=erro | erro={e}")
+        _emitir_campo(engine, "cidade", "erro", seletor=gatilho)
 
 
 def _preencher_pretensao_salarial(engine: BrowserEngine, valor: str):
     seletor = _resolver_campo(engine, "pretensao")
     if seletor is None:
         logger.warning("[CAMPO] pretensao-salarial | status=nao-encontrado")
+        _emitir_campo(engine, "pretensao-salarial", "nao-encontrado")
         return
     try:
         engine.click(seletor)
@@ -168,8 +187,10 @@ def _preencher_pretensao_salarial(engine: BrowserEngine, valor: str):
         # Campo com máscara monetária: digitar tecla a tecla
         engine.type_text(seletor, valor)
         _log_campo("pretensao-salarial", "ok")
+        _emitir_campo(engine, "pretensao-salarial", "ok", seletor=seletor)
     except Exception as e:
         logger.warning(f"[CAMPO] pretensao-salarial | status=erro | erro={e}")
+        _emitir_campo(engine, "pretensao-salarial", "erro", seletor=seletor)
 
 
 def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
@@ -185,13 +206,16 @@ def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
             f"[CAMPO-NAO-ENCONTRADO] disponibilidade-presencial | "
             f"valor='{valor}' | obrigatorio=True"
         )
+        _emitir_campo(engine, "disponibilidade-presencial", "nao-encontrado")
         logger.error(msg)
         raise CampoNaoEncontradoError(msg)
     try:
         engine.click(seletor, force=True)
         _log_campo("disponibilidade-presencial", "ok", f"seletor={seletor}")
+        _emitir_campo(engine, "disponibilidade-presencial", "ok", seletor=seletor)
     except Exception as e:
         msg = f"[ERRO-CAMPO] disponibilidade-presencial | seletor={seletor} | erro={e}"
+        _emitir_campo(engine, "disponibilidade-presencial", "erro", seletor=seletor)
         logger.error(msg)
         raise
 
@@ -200,24 +224,30 @@ def _selecionar_indicacao(engine: BrowserEngine):
     seletor = _resolver_campo(engine, "indicacao_nao")
     if seletor is None:
         _log_campo("indicacao-nao", "nao-encontrado")
+        _emitir_campo(engine, "indicacao-nao", "nao-encontrado")
         return
     try:
         engine.click(seletor, force=True)
         _log_campo("indicacao-nao", "ok")
+        _emitir_campo(engine, "indicacao-nao", "ok", seletor=seletor)
     except Exception as e:
         logger.warning(f"[CAMPO] indicacao-nao | status=erro | erro={e}")
+        _emitir_campo(engine, "indicacao-nao", "erro", seletor=seletor)
 
 
 def _anexar_curriculo(engine: BrowserEngine, caminho: str):
     seletor = _resolver_campo(engine, "curriculo")
     if seletor is None:
         logger.warning("[CAMPO] curriculo | status=nao-encontrado")
+        _emitir_campo(engine, "curriculo", "nao-encontrado")
         return
     try:
         engine.force_upload(seletor, caminho)
         _log_campo("curriculo", "ok")
+        _emitir_campo(engine, "curriculo", "ok", seletor=seletor)
     except Exception as e:
         logger.warning(f"[CAMPO] curriculo | status=erro | erro={e}")
+        _emitir_campo(engine, "curriculo", "erro", seletor=seletor)
 
 
 def _avancar(engine: BrowserEngine):
@@ -225,6 +255,7 @@ def _avancar(engine: BrowserEngine):
     try:
         engine.click("button:has-text('Avançar')", attempts=2)
         _log_campo("avancar", "ok")
+        engine.emitir(STATUS_PROCESSING, "avancar", status_campo="ok")
         return
     except Exception:
         logger.warning("[FLUXO] avancar | botão desabilitado; forçando via JS...")
@@ -244,6 +275,7 @@ def _avancar(engine: BrowserEngine):
             })()"""
         )
         _log_campo("avancar", "forcado-js")
+        engine.emitir(STATUS_PROCESSING, "avancar", status_campo="forcado-js")
     finally:
         time.sleep(2)
 
@@ -252,33 +284,40 @@ def _marcar_privacidade(engine: BrowserEngine):
     seletor = _resolver_campo(engine, "privacidade")
     if seletor is None:
         _log_campo("privacidade", "nao-encontrado")
+        _emitir_campo(engine, "privacidade", "nao-encontrado")
         return
     try:
         engine.check(seletor)
         _log_campo("privacidade", "ok")
+        _emitir_campo(engine, "privacidade", "ok", seletor=seletor)
     except Exception as e:
         # Checkbox oculto de verdade: clicar via JS marca mesmo assim
         try:
             engine.evaluate(f"document.querySelector('{seletor}')?.click()")
             _log_campo("privacidade", "ok-js")
+            _emitir_campo(engine, "privacidade", "ok-js", seletor=seletor)
         except Exception as e2:
             logger.warning(f"[CAMPO] privacidade | status=erro | erro={e} | fallback-js={e2}")
+            _emitir_campo(engine, "privacidade", "erro", seletor=seletor)
 
 
 def _submeter(engine: BrowserEngine):
     """Envia a candidatura. Em modo debug, apenas notifica sem enviar."""
     if engine.debug:
         logger.info("[FLUXO] submit | status=debug-nao-enviado (alerta de sucesso exibido)")
+        engine.emitir(STATUS_PROCESSING, "submit", status_campo="debug-nao-enviado")
         _notificar_sucesso(engine)
         return
     for sel in _SELETORES_SUBMIT:
         try:
             engine.click(sel)
             logger.info(f"[FLUXO] submit | status=ok | seletor={sel}")
+            engine.emitir(STATUS_PROCESSING, "submit", status_campo="ok", seletor=sel)
             return
         except Exception:
             logger.warning(f"[FLUXO] submit | seletor={sel} | status=falhou")
     logger.warning("[FLUXO] submit | status=erro; tentando via JavaScript...")
+    engine.emitir(STATUS_PROCESSING, "submit", status_campo="erro")
     engine.evaluate(
         "document.querySelector('button[type=\"submit\"]')?.removeAttribute('disabled');"
         "document.querySelector('button[type=\"submit\"]')?.click();"
@@ -315,6 +354,7 @@ def selecionar_react_dropdown(
     trigger_sel = f"#{css_id} .react-dropdown-select"
     if not engine.exists(trigger_sel):
         _log_campo(label, "nao-encontrado")
+        _emitir_campo(engine, label, "nao-encontrado")
         return
     try:
         engine.click(trigger_sel, force=True)
@@ -322,6 +362,7 @@ def selecionar_react_dropdown(
         engine.click(f"button[aria-label='{texto_opcao}']", force=True)
         time.sleep(0.3)
         _log_campo(label, "ok", f"opcao='{texto_opcao}'")
+        _emitir_campo(engine, label, "ok", seletor=trigger_sel)
     except Exception as e:
         # Dropdown oculto/colapsado: tentar via JS
         try:
@@ -333,8 +374,10 @@ def selecionar_react_dropdown(
             )
             time.sleep(0.3)
             _log_campo(label, "ok-js", f"opcao='{texto_opcao}'")
+            _emitir_campo(engine, label, "ok-js", seletor=trigger_sel)
         except Exception as e2:
             logger.warning(f"[CAMPO] {label} | status=erro | erro={e} | fallback-js={e2}")
+            _emitir_campo(engine, label, "erro", seletor=trigger_sel)
 
 
 def marcar_checkbox_por_texto(engine: BrowserEngine, texto: str, label: str = "checkbox"):
@@ -342,12 +385,15 @@ def marcar_checkbox_por_texto(engine: BrowserEngine, texto: str, label: str = "c
     selector = f"label:has-text('{texto}') input[type='checkbox']"
     if not engine.exists(selector):
         _log_campo(label, "nao-encontrado")
+        _emitir_campo(engine, label, "nao-encontrado")
         return
     try:
         engine.check(selector)
         _log_campo(label, "ok", f"texto='{texto}'")
+        _emitir_campo(engine, label, "ok", seletor=selector)
     except Exception as e:
         logger.warning(f"[CAMPO] {label} | status=erro | erro={e}")
+        _emitir_campo(engine, label, "erro", seletor=selector)
 
 
 @register_site("inhire")
@@ -355,6 +401,7 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
     """Implementação da automação inHire."""
     logger.info(f"[FLUXO] site=inhire | url={url_vaga}")
     engine.navigate(url_vaga)
+    engine.emitir(STATUS_PROCESSING, "navegacao", status_campo="ok")
 
     # Nome completo é obrigatório
     nome = _exigir_nome_completo(dados)

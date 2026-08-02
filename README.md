@@ -61,6 +61,67 @@ make add-site NAME=novosite
 
 Cria o arquivo em `src/auto_job_apply/sites/novosite.py` com o boilerplate e o registra no `__init__.py`.
 
+## Saída da função
+
+A função `apply` **nunca levanta exceção**: sempre retorna um dict com o resultado final e, opcionalmente, emite eventos de progresso em tempo real via callback `on_progress`.
+
+### Eventos de progresso (`on_progress`)
+
+```python
+from auto_job_apply import apply
+
+def on_progress(evt: dict):
+    # evt é serializável em JSON — persista onde quiser (banco, kanban, Redis)
+    print(evt)
+
+resultado = apply(site, url, dados, curriculo, on_progress=on_progress)
+```
+
+Cada campo/etapa emite um evento `{status, etapa, timestamp, ...}`:
+
+```json
+{"status": "processing", "etapa": "started",   "timestamp": 1725300000.1, "site": "inhire", "url": "..."}
+{"status": "processing", "etapa": "navegacao", "status_campo": "ok"}
+{"status": "processing", "etapa": "campo",     "campo": "nome", "status_campo": "ok", "seletor": "input[name='name']"}
+{"status": "processing", "etapa": "campo",     "campo": "linkedin", "status_campo": "nao-encontrado"}
+{"status": "processing", "etapa": "avancar",   "status_campo": "ok"}
+{"status": "processing", "etapa": "submit",    "status_campo": "ok"}
+{"status": "completed",  "etapa": "concluido", "duracao_seg": 42.3}
+```
+
+Em caso de falha:
+
+```json
+{"status": "error", "etapa": "erro", "erro": "Page.click: Timeout...", "duracao_seg": 12.1}
+```
+
+Status possíveis: `processing` → `completed` ou `error`. Falhas no callback nunca quebram a automação.
+
+### Retorno final
+
+```python
+{
+  "status": "completed",        # ou "error"
+  "site": "inhire",
+  "url": "https://...",
+  "log": "[FLUXO] site=inhire | ...\n[CAMPO] nome | status=ok | ...",  # logs estruturados (mesmos do terminal, servem para IA)
+  "duracao_seg": 42.3,
+  "erro": "mensagem legível",  # presente apenas quando status == "error"
+}
+```
+
+### Exemplo num fluxo contínuo (Celery/JobSpy)
+
+```python
+def task_candidatura(vaga_id, site, url, dados, curriculo):
+    def on_progress(evt):
+        db.atualizar_status(vaga_id, evt["status"], etapa=evt["etapa"])
+
+    resultado = apply(site, url, dados, curriculo, on_progress=on_progress)
+    db.salvar_log(vaga_id, resultado["log"])
+    return resultado
+```
+
 ## Arquitetura
 
 ```

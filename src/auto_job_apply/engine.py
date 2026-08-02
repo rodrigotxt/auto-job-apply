@@ -3,6 +3,8 @@ import time
 
 from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
+from .progresso import ProgressCallback, montar_evento
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,16 +16,27 @@ class BrowserEngine:
         delay: float = 0.0,
         max_attempts: int = 3,
         retry_delay: float = 1.0,
+        on_progress: ProgressCallback | None = None,
     ):
         self.headless = headless
         self.debug = debug
         self.delay = delay
         self.max_attempts = max_attempts
         self.retry_delay = retry_delay
+        self.on_progress = on_progress
         self.playwright = sync_playwright().start()
         self.browser: Browser = self.playwright.chromium.launch(headless=self.headless)
         self.context: BrowserContext = self.browser.new_context()
         self.page: Page = self.context.new_page()
+
+    def emitir(self, status: str, etapa: str, **kwargs):
+        """Emite evento de progresso (se callback registrado). Nunca levanta."""
+        if not self.on_progress:
+            return
+        try:
+            self.on_progress(montar_evento(status, etapa, **kwargs))
+        except Exception as e:
+            logger.warning(f"[PROGRESSO] callback falhou: {e}")
 
     def _pause(self):
         """Aguarda o delay configurado (modo debug)."""
