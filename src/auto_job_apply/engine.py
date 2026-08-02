@@ -82,6 +82,11 @@ class BrowserEngine:
         self._retry(_click)
         self._pause()
 
+    def type_text(self, selector: str, value: str, delay: float = 80):
+        """Digita texto tecla a tecla (necessário em campos com máscara)."""
+        self.page.type(selector, value, delay=delay)
+        self._pause()
+
     def force_upload(self, selector: str, file_path: str):
         """Faz upload mesmo em inputs de arquivo ocultos (comum em formulários estilizados)."""
 

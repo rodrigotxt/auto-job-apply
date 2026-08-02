@@ -63,7 +63,16 @@ def _selecionar_cidade(engine: BrowserEngine, cidade_alvo: str):
 def _preencher_pretensao_salarial(engine: BrowserEngine, valor: str):
     engine.click("input[name='salaryExpectation']")
     time.sleep(0.3)
-    engine.fill_field("input[name='salaryExpectation']", valor)
+    engine.fill_field("input[name='salaryExpectation']", "")
+    time.sleep(0.2)
+    # Campo com máscara monetária: digitar tecla a tecla
+    engine.type_text("input[name='salaryExpectation']", valor)
+
+
+def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
+    """Seleciona o radio 'Disponibilidade para trabalho presencial' (workModel)."""
+    radio_value = "true" if valor == "Sim" else "false"
+    engine.click(f"input[name='workModel'][value='{radio_value}']")
 
 
 def _avancar(engine: BrowserEngine):
@@ -72,9 +81,20 @@ def _avancar(engine: BrowserEngine):
         engine.click("button:has-text('Avançar')")
     except Exception:
         logger.warning("'Avançar' não habilitado; forçando via JS...")
+        # :has-text não é seletor CSS válido no browser — usar XPath
         engine.evaluate(
-            "document.querySelector('button:has-text(\"Avançar\")')?.removeAttribute('disabled');"
-            "document.querySelector('button:has-text(\"Avançar\")')?.click();"
+            """(() => {
+              const btn = document.evaluate(
+                "//button[contains(normalize-space(.), 'Avançar')]",
+                document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+              ).singleNodeValue;
+              if (btn) {
+                btn.removeAttribute('disabled');
+                btn.click();
+                return 'ok';
+              }
+              return 'not found';
+            })()"""
         )
     time.sleep(2)
 
@@ -156,6 +176,11 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
     _opcional(lambda: _selecionar_pais(engine), label="pais")
     _opcional(
         lambda: _selecionar_cidade(engine, dados.get("cidade", "Sao Jose - SC")), label="cidade"
+    )
+
+    _opcional(
+        lambda: _selecionar_disponibilidade(engine, dados.get("disponibilidade_presencial", "Sim")),
+        label="disponibilidade-presencial",
     )
 
     pretensao = _so_digitos(dados.get("pretensao_salarial", ""))

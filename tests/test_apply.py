@@ -16,7 +16,11 @@ def mock_engine(monkeypatch):
 
 
 def test_apply_inhire_mocked(mock_engine):
-    dados = {"nome": "Rodrigo Exemplo", "email": "rodrigo@exemplo.com"}
+    dados = {
+        "nome": "Rodrigo Exemplo",
+        "email": "rodrigo@exemplo.com",
+        "disponibilidade_presencial": "Sim",
+    }
     curriculo = "caminho/do/curriculo.pdf"
     url = "https://inhire.com/vaga/1"
 
@@ -24,6 +28,8 @@ def test_apply_inhire_mocked(mock_engine):
 
     assert resultado is True
     mock_engine.navigate.assert_called_with(url)
+    # Campo obrigatório 'Disponibilidade para trabalho presencial' é selecionado
+    mock_engine.click.assert_any_call("input[name='workModel'][value='true']")
 
 
 def test_apply_debug_nao_submete(mock_engine):
