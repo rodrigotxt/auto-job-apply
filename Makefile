@@ -1,15 +1,24 @@
-.PHONY: up test lint add-site
+.PHONY: up test lint add-site test-site help
+
+help:
+	@echo "Comandos disponíveis:"
+	@echo "  make up          - Instala ambiente virtual e dependências"
+	@echo "  make test        - Roda todos os testes unitários com pytest"
+	@echo "  make lint        - Roda ruff para análise de código"
+	@echo "  make add-site NAME=<nome> - Cria scaffold para um novo site"
+	@echo "  make test-site SITE=<nome> - Roda um teste rápido para um site específico"
+	@echo "  make help        - Mostra esta ajuda"
 
 up:
-	python -m venv .venv
+	python3 -m venv .venv
 	. .venv/bin/activate && pip install -e .[dev]
 	. .venv/bin/activate && playwright install chromium
 
 test:
-	pytest tests
+	. .venv/bin/activate && pytest tests
 
 lint:
-	ruff check .
+	. .venv/bin/activate && ruff check .
 
 add-site:
 	@if [ -z "$(NAME)" ]; then \
@@ -17,6 +26,20 @@ add-site:
 		exit 1; \
 	fi
 	@echo "Criando scaffold para: $(NAME)..."
-	@echo "from ..registry import register_site\n\n@register_site(\"$(NAME)\")\ndef apply_$(NAME)(url_vaga: str, dados: dict, curriculo_path: str) -> bool:\n    \"\"\"Implementação específica para o $(NAME).\"\"\"\n    print(f\"Executando $(NAME): {url_vaga}\")\n    return True" > src/auto_job_apply/sites/$(NAME).py
+	@echo "from ..registry import register_site\nfrom ..engine import BrowserEngine\n\n@register_site(\"$(NAME)\")\ndef apply_$(NAME)(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_path: str) -> bool:\n    \"\"\"Implementação específica para o $(NAME).\"\"\"\n    print(f\"Executando $(NAME): {url_vaga}\")\n    return True" > src/auto_job_apply/sites/$(NAME).py
 	@sed -i '/# Importar módulos de sites para garantir que o registro ocorra/a from .sites import $(NAME)' src/auto_job_apply/__init__.py
 	@echo "Site '$(NAME)' criado e registrado com sucesso."
+
+test-site:
+	@if [ -z "$(SITE)" ]; then \
+		echo "Erro: Nome do site não informado. Use: make test-site SITE=nome"; \
+		exit 1; \
+	fi
+	@if [ ! -f "assets/curriculo.pdf" ]; then \
+		echo "Aviso: assets/curriculo.pdf não encontrado. O upload falhará."; \
+	fi
+	@echo "from auto_job_apply import apply; import yaml; \
+	dados = yaml.safe_load(open('assets/dados-de-candidatura.yaml')); \
+	apply('$(SITE)', 'https://$(SITE).com/vaga/exemplo', dados, 'assets/curriculo.pdf')" > temp_test.py
+	. .venv/bin/activate && python3 temp_test.py
+	@rm temp_test.py
