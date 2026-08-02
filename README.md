@@ -53,6 +53,15 @@ make test      # pytest (DOM mockado)
 make lint      # ruff
 ```
 
+### Demo da saída da função (não envia nada)
+
+```bash
+make demo      # usa uma vaga inHire padrão
+# ou: make demo SITE=inhire URL=<url>
+```
+
+Mostra em tempo real cada evento JSON de `on_progress` (status/etapa/campo) e o dict de retorno final com `status`, `log` e `duracao_seg`.
+
 ### Adicionar um novo site
 
 ```bash
