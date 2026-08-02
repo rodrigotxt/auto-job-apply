@@ -120,24 +120,35 @@ def _selecionar_pais(engine: BrowserEngine):
 
 
 def _selecionar_cidade(engine: BrowserEngine, cidade_alvo: str):
-    # O campo de cidade só aparece após selecionar o país (DOM dinâmico): aguardar
+    # O campo de cidade só aparece após selecionar o país (DOM dinâmico)
     gatilho = None
     for _ in range(5):
         gatilho = _resolver_campo(engine, "cidade")
         if gatilho:
             break
         time.sleep(1)
-    busca = _resolver_campo(engine, "cidade_busca")
-    primeira = _resolver_campo(engine, "cidade_primeira_opcao")
-    if gatilho is None or busca is None or primeira is None:
-        logger.warning("[CAMPO] cidade | status=nao-encontrado")
+    if gatilho is None:
+        logger.warning("[CAMPO] cidade | status=nao-encontrado (gatilho)")
         return
     try:
         engine.click(gatilho)
         time.sleep(0.3)
+        # A busca e a lista só existem com o dropdown aberto (DOM dinâmico)
+        busca = None
+        for _ in range(5):
+            busca = _resolver_campo(engine, "cidade_busca")
+            if busca:
+                break
+            time.sleep(0.5)
+        if busca is None:
+            logger.warning("[CAMPO] cidade | status=erro | busca não apareceu")
+            return
         engine.fill_field(busca, cidade_alvo)
         time.sleep(0.5)
-        # Clica na primeira opção (texto pode ter acentos)
+        primeira = _resolver_campo(engine, "cidade_primeira_opcao")
+        if primeira is None:
+            logger.warning("[CAMPO] cidade | status=erro | lista de opções não apareceu")
+            return
         engine.click(primeira, force=True)
         _log_campo("cidade", "ok", f"valor='{cidade_alvo}'")
     except Exception as e:
