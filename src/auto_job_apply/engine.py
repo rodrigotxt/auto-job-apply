@@ -28,8 +28,8 @@ class BrowserEngine:
         self.page.click(selector)
 
     def force_upload(self, selector: str, file_path: str):
-        self.page.evaluate(f"document.querySelector('{selector}').style.display='block'")
-        self.upload_file(selector, file_path)
+        """Faz upload mesmo em inputs de arquivo ocultos (padrão comum em formulários estilizados)."""
+        self.page.set_input_files(selector, file_path)
 
     def screenshot(self, path: str):
         self.page.screenshot(path=path)
