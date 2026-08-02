@@ -15,6 +15,10 @@ Fornecer uma interface unificada (`apply`) para automatizar a submissão de curr
 - **Qualidade:** testes com DOM mockado (sem navegador real).
 - **Segurança:** sem dados pessoais no repositório — use dados fictícios nos exemplos.
 
+## Documentação
+
+- [`docs/testes-vagas.md`](docs/testes-vagas.md) — matriz de validação com vagas reais (inHire).
+
 ## Quick start
 
 ```bash
