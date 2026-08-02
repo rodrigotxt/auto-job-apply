@@ -1,4 +1,4 @@
-.PHONY: up test lint add-site test-site help
+.PHONY: up test lint add-site apply help
 
 help:
 	@echo "Comandos disponíveis:"
@@ -6,7 +6,7 @@ help:
 	@echo "  make test        - Roda todos os testes unitários com pytest"
 	@echo "  make lint        - Roda ruff para análise de código"
 	@echo "  make add-site NAME=<nome> - Cria scaffold para um novo site"
-	@echo "  make test-site SITE=<nome> - Roda um teste rápido para um site específico"
+	@echo "  make apply SITE=<nome> URL=<url> - Roda automação para um site e URL"
 	@echo "  make help        - Mostra esta ajuda"
 
 up:
@@ -30,9 +30,9 @@ add-site:
 	@sed -i '/# Importar módulos de sites para garantir que o registro ocorra/a from .sites import $(NAME)' src/auto_job_apply/__init__.py
 	@echo "Site '$(NAME)' criado e registrado com sucesso."
 
-test-site:
-	@if [ -z "$(SITE)" ]; then \
-		echo "Erro: Nome do site não informado. Use: make test-site SITE=nome"; \
+apply:
+	@if [ -z "$(SITE)" ] || [ -z "$(URL)" ]; then \
+		echo "Erro: SITE e URL são obrigatórios. Use: make apply SITE=nome URL=url"; \
 		exit 1; \
 	fi
 	@if [ ! -f "assets/curriculo.pdf" ]; then \
@@ -40,6 +40,6 @@ test-site:
 	fi
 	@echo "from auto_job_apply import apply; import yaml; \
 	dados = yaml.safe_load(open('assets/dados-de-candidatura.yaml')); \
-	apply('$(SITE)', 'https://$(SITE).com/vaga/exemplo', dados, 'assets/curriculo.pdf')" > temp_test.py
-	. .venv/bin/activate && python3 temp_test.py
-	@rm temp_test.py
+	apply('$(SITE)', '$(URL)', dados, 'assets/curriculo.pdf')" > temp_run.py
+	. .venv/bin/activate && python3 temp_run.py
+	@rm temp_run.py
