@@ -6,5 +6,5 @@ from ..registry import register_site
 def apply_gupy(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_path: str) -> bool:
     """Implementação específica para o Gupy."""
     print(f"Executando Gupy: {url_vaga}")
-    engine.navigate(url_vaga)
-    return True
+    return False # Nao implementado
+    #engine.navigate(url_vaga)
