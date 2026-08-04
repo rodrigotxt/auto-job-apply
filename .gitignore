@@ -9,6 +9,9 @@ IDENTITY.md
 HEARTBEAT.md
 openclaw-workspace-state.json
 
+# Notas do agente (continuidade de sessão, não fazem parte do pacote)
+memory/
+
 # Local history (VS Code)
 .history/
 # Temp script gerado pelo make apply

@@ -26,7 +26,8 @@ Cada vaga renderiza um subconjunto diferente de campos. O script se adapta autom
 
 - **Campos presentes** → preenchidos com `[CAMPO] <nome> | status=ok`.
 - **Campos ausentes** → `[CAMPO-NAO-ENCONTRADO] <nome> | obrigatorio=False` e o fluxo segue.
-- **Obrigatórios** (nome completo, CPF, email, telefone, disponibilidade presencial, currículo) → presentes em todas as vagas e preenchidos com sucesso.
+- **Obrigatório de verdade** (nome completo) → aborta com erro claro se não existir na página.
+- **Disponibilidade presencial** → não é mais bloqueante: se a vaga não tiver a pergunta, é ignorada após as tentativas e o fluxo segue.
 - **Avançar/Submit** → habilitados naturalmente quando os obrigatórios são preenchidos; fallback via JS apenas em casos extremos.
 
 ## Logs de referência

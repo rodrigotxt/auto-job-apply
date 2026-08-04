@@ -78,14 +78,33 @@ def test_apply_requer_nome_completo(mock_engine):
 
 
 def test_apply_campo_obrigatorio_nao_encontrado(mock_engine):
-    # Nenhum seletor existe na página
+    # Nenhum seletor existe na página (nem fallback por label): nome é obrigatório
     mock_engine.exists.side_effect = lambda sel: False
+    mock_engine.campo_por_label.return_value = None
     resultado = apply(
         "inhire", "https://inhire.com/vaga/1", {"nome": "Rodrigo Exemplo"}, "curriculo.pdf"
     )
 
     assert resultado["status"] == "error"
     assert "CAMPO-NAO-ENCONTRADO" in resultado["erro"]
+
+
+def test_apply_disponibilidade_ausente_ignora_e_segue(mock_engine):
+    # Vaga sem a pergunta de disponibilidade presencial: o radio workModel não existe
+    mock_engine.max_attempts = 2
+    mock_engine.retry_delay = 0.0
+    mock_engine.exists.side_effect = lambda sel: "workModel" not in sel
+    dados = {"nome": "Rodrigo Exemplo", "email": "rodrigo@exemplo.com"}
+
+    resultado = apply("inhire", "https://inhire.com/vaga/1", dados, "curriculo.pdf")
+
+    # Fluxo conclui mesmo sem o campo
+    assert resultado["status"] == "completed"
+    assert "disponibilidade-presencial" in resultado["log"]
+    assert "ignorado" in resultado["log"]
+    # Nenhum clique em workModel foi tentado
+    clicks = [c.args[0] for c in mock_engine.click.call_args_list]
+    assert not any("workModel" in str(sel) for sel in clicks)
 
 
 def test_apply_site_invalido():

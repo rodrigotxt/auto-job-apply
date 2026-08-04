@@ -155,8 +155,8 @@ O script emite logs no formato `[MARCADOR] campo | chave=valor` — cada linha �
 |---|---|
 | `[FLUXO]` | Etapas do fluxo: navegação, avançar, submit, conclusão. |
 | `[CAMPO]` | Resultado de um campo: `status=ok`, `status=erro`, `status=nao-encontrado`, `status=resolvido-por-label`. |
-| `[ERRO-CAMPO]` | Falha ao preencher um campo **obrigatório** (aborta o fluxo com erro claro). |
-| `[CAMPO-NAO-ENCONTRADO]` | Campo não existe no DOM daquela vaga (opcionais seguem, obrigatórios abortam). |
+| `[ERRO-CAMPO]` | Falha ao preencher um campo (aborta o fluxo apenas se o campo for obrigatório). |
+| `[CAMPO-NAO-ENCONTRADO]` | Campo não existe no DOM daquela vaga (opcionais seguem; só o nome completo é obrigatório e aborta). |
 | `[CAMPO-NAO-PREENCHIDO]` | Campo visível que ficou vazio, detectado no relatório final. |
 | `[RELATORIO]` | Resumo final: `Todos os campos visíveis estão preenchidos.` ou `N campo(s) não preenchido(s):`. |
 
@@ -200,7 +200,7 @@ Cada campo é preenchido em camadas, nesta ordem:
 4. **Fallback JS** — elementos realmente ocultos (checkbox/dropdown estilizados) são acionados via JavaScript.
 5. **Relatório final** — sempre roda (até em erro, via `finally`) e lista o que ficou vazio.
 
-Campos **obrigatórios** (ex.: nome completo, disponibilidade presencial) abortam o fluxo com `[ERRO-CAMPO]`/`[CAMPO-NAO-ENCONTRADO]` explícito; campos **opcionais** são ignorados com warning e o fluxo segue.
+Campos **obrigatórios** (apenas o nome completo hoje) abortam o fluxo com `[ERRO-CAMPO]`/`[CAMPO-NAO-ENCONTRADO]` explícito; os demais — inclusive disponibilidade presencial — são ignorados com warning quando ausentes e o fluxo segue.
 
 ## Segurança
 

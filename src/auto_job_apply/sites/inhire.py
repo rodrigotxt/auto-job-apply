@@ -197,27 +197,32 @@ def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
     """Seleciona o radio 'Disponibilidade para trabalho presencial' (workModel).
 
     O input é estilizado e um <span> intercepta o clique: usa force=True.
-    Campo obrigatório — falha explícita se não for encontrado/preenchido.
+    Nem toda vaga tem essa pergunta: após as tentativas, se o campo não
+    existir (ou falhar), ignora e segue o fluxo (não aborta a candidatura).
     """
     chave = "workmodel_sim" if valor == "Sim" else "workmodel_nao"
-    seletor = _resolver_campo(engine, chave)
+    seletor = None
+    for _ in range(engine.max_attempts):
+        seletor = _resolver_campo(engine, chave)
+        if seletor:
+            break
+        time.sleep(engine.retry_delay)
     if seletor is None:
         msg = (
             f"[CAMPO-NAO-ENCONTRADO] disponibilidade-presencial | "
-            f"valor='{valor}' | obrigatorio=True"
+            f"valor='{valor}' | obrigatorio=False | ignorado"
         )
         _emitir_campo(engine, "disponibilidade-presencial", "nao-encontrado")
-        logger.error(msg)
-        raise CampoNaoEncontradoError(msg)
+        logger.warning(msg)
+        return
     try:
         engine.click(seletor, force=True)
         _log_campo("disponibilidade-presencial", "ok", f"seletor={seletor}")
         _emitir_campo(engine, "disponibilidade-presencial", "ok", seletor=seletor)
     except Exception as e:
-        msg = f"[ERRO-CAMPO] disponibilidade-presencial | seletor={seletor} | erro={e}"
+        msg = f"[ERRO-CAMPO] disponibilidade-presencial | seletor={seletor} | erro={e} | ignorado"
         _emitir_campo(engine, "disponibilidade-presencial", "erro", seletor=seletor)
-        logger.error(msg)
-        raise
+        logger.warning(msg)
 
 
 def _selecionar_indicacao(engine: BrowserEngine):
