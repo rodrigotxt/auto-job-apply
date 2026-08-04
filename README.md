@@ -10,7 +10,9 @@ Fornecer uma interface unificada (`apply`) para automatizar a submissão de curr
 
 - **Interface única:** `apply(site, url_vaga, dados, curriculo_path)` — mesma função usada pelo Makefile, testes e consumidores externos.
 - **Extensível:** registro explícito de sites via decorator + `make add-site`.
-- **Resiliente:** fallback de seletores, busca por label e relatório de campos não preenchidos.
+- **Resiliente:** fallback de seletores, busca por label, relatório de campos não
+  preenchidos e erro explícito se o botão de submit não habilitar ao final (nunca
+  força envio via JS em botão desabilitado).
 - **Logs estruturados:** saída parseável por máquina/IA para auto-aprimoramento do script.
 - **Qualidade:** testes com DOM mockado (sem navegador real).
 - **Segurança:** sem dados pessoais no repositório — use dados fictícios nos exemplos.

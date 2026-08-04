@@ -94,6 +94,31 @@ class BrowserEngine:
                 continue
         return None
 
+    def is_enabled(self, selector: str) -> bool:
+        """True se o elemento existe e não está desabilitado (disabled/aria-disabled)."""
+        try:
+            return bool(
+                self.page.evaluate(
+                    """(sel) => {
+                        const el = document.querySelector(sel);
+                        if (!el) return false;
+                        return !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+                    }""",
+                    selector,
+                )
+            )
+        except Exception:  # noqa: BLE001 - best-effort, trata como desabilitado
+            return False
+
+    def wait_enabled(self, selector: str, timeout: float = 10.0) -> bool:
+        """Aguarda o elemento ficar habilitado (validação assíncrona do form)."""
+        fim = time.time() + timeout
+        while time.time() < fim:
+            if self.is_enabled(selector):
+                return True
+            time.sleep(0.5)
+        return False
+
     def relatorio_campos_nao_preenchidos(self) -> list[dict]:
         """Lista campos visíveis que estão vazios (para diagnóstico/IA)."""
         try:

@@ -15,6 +15,9 @@ _SELETORES_SUBMIT = [
     "button[type='submit']",
 ]
 
+# Tempo máximo esperando o botão de submit habilitar (validação assíncrona)
+_TIMEOUT_SUBMIT = 10.0
+
 # Seletores candidatos por campo (fallback em ordem de preferência)
 _CAMPOS = {
     "nome": ["input[name='name']", "input#name"],
@@ -49,6 +52,10 @@ _LABELS = {
 
 class CampoNaoEncontradoError(ValueError):
     """Campo obrigatório não encontrado no formulário."""
+
+
+class SubmitBloqueadoError(RuntimeError):
+    """Botão de submit não habilitou ao final do fluxo (campo obrigatório pendente)."""
 
 
 def _so_digitos(valor) -> str:
@@ -307,26 +314,48 @@ def _marcar_privacidade(engine: BrowserEngine):
 
 
 def _submeter(engine: BrowserEngine):
-    """Envia a candidatura. Em modo debug, apenas notifica sem enviar."""
+    """Envia a candidatura. Em modo debug, apenas notifica sem enviar.
+
+    O botão precisa estar HABILITADO: aguarda até _TIMEOUT_SUBMIT pela
+    validação assíncrona do formulário. Se continuar desabilitado ao final
+    (ex.: campo obrigatório como contractType não preenchido), levanta
+    SubmitBloqueadoError — NUNCA força o clique via JS em botão desabilitado.
+    """
     if engine.debug:
         logger.info("[FLUXO] submit | status=debug-nao-enviado (alerta de sucesso exibido)")
         engine.emitir(STATUS_PROCESSING, "submit", status_campo="debug-nao-enviado")
         _notificar_sucesso(engine)
         return
+
+    encontrado = False
     for sel in _SELETORES_SUBMIT:
-        try:
+        if not engine.exists(sel):
+            continue
+        encontrado = True
+        if engine.wait_enabled(sel, timeout=_TIMEOUT_SUBMIT):
             engine.click(sel)
             logger.info(f"[FLUXO] submit | status=ok | seletor={sel}")
             engine.emitir(STATUS_PROCESSING, "submit", status_campo="ok", seletor=sel)
             return
-        except Exception:
-            logger.warning(f"[FLUXO] submit | seletor={sel} | status=falhou")
-    logger.warning("[FLUXO] submit | status=erro; tentando via JavaScript...")
-    engine.emitir(STATUS_PROCESSING, "submit", status_campo="erro")
-    engine.evaluate(
-        "document.querySelector('button[type=\"submit\"]')?.removeAttribute('disabled');"
-        "document.querySelector('button[type=\"submit\"]')?.click();"
+
+    if not encontrado:
+        raise SubmitBloqueadoError(
+            "[SUBMIT-NAO-ENCONTRADO] Botão de submit não encontrado no formulário."
+        )
+
+    # Botão existe mas permaneceu desabilitado: relatório dos campos pendentes
+    faltantes = engine.relatorio_campos_nao_preenchidos()
+    detalhe = "; ".join(
+        f"{c['name'] or c['id'] or c['label'] or '?'} (required={c['required']})"
+        for c in faltantes
+    ) or "nenhum campo vazio detectado (validação custom)"
+    msg = (
+        "[SUBMIT-BLOQUEADO] Botão de submit permaneceu desabilitado após o preenchimento. "
+        f"Campos visíveis não preenchidos: {detalhe}"
     )
+    logger.error(msg)
+    engine.emitir(STATUS_PROCESSING, "submit", status_campo="bloqueado", detalhe=detalhe)
+    raise SubmitBloqueadoError(msg)
 
 
 def _notificar_sucesso(engine: BrowserEngine):

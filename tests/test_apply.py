@@ -112,3 +112,39 @@ def test_apply_site_invalido():
 
     assert resultado["status"] == "error"
     assert "não registrado" in resultado["erro"]
+
+
+def test_apply_submit_desabilitado_retorna_erro(mock_engine):
+    # Botão de submit existe mas permanece desabilitado (ex.: contractType não preenchido)
+    mock_engine.wait_enabled.return_value = False
+    mock_engine.relatorio_campos_nao_preenchidos.return_value = [
+        {
+            "name": "contractType",
+            "id": None,
+            "label": "Tipo de contrato",
+            "required": True,
+            "tag": "select",
+            "type": "select-one",
+        }
+    ]
+    dados = {"nome": "Rodrigo Exemplo", "email": "rodrigo@exemplo.com"}
+
+    resultado = apply("inhire", "https://inhire.com/vaga/1", dados, "curriculo.pdf")
+
+    assert resultado["status"] == "error"
+    assert "SUBMIT-BLOQUEADO" in resultado["erro"]
+    assert "contractType" in resultado["erro"]
+    # Não deve forçar o clique via JS em botão desabilitado
+    evals = [str(e.args) for e in mock_engine.evaluate.call_args_list]
+    assert not any("removeAttribute('disabled')" in s for s in evals)
+
+
+def test_apply_submit_aguarda_habilitar_e_clica(mock_engine):
+    dados = {"nome": "Rodrigo Exemplo", "email": "rodrigo@exemplo.com"}
+
+    resultado = apply("inhire", "https://inhire.com/vaga/1", dados, "curriculo.pdf")
+
+    assert resultado["status"] == "completed"
+    mock_engine.wait_enabled.assert_called()
+    clicks = [c.args[0] for c in mock_engine.click.call_args_list]
+    assert any("submit" in str(sel) or "Continuar" in str(sel) for sel in clicks)
