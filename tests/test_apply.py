@@ -148,3 +148,46 @@ def test_apply_submit_aguarda_habilitar_e_clica(mock_engine):
     mock_engine.wait_enabled.assert_called()
     clicks = [c.args[0] for c in mock_engine.click.call_args_list]
     assert any("submit" in str(sel) or "Continuar" in str(sel) for sel in clicks)
+
+
+def test_apply_tipo_contrato_default_clt(mock_engine):
+    # Sem chave no dados, assume CLT
+    dados = {"nome": "Rodrigo Exemplo", "email": "rodrigo@exemplo.com"}
+
+    resultado = apply("inhire", "https://inhire.com/vaga/1", dados, "curriculo.pdf")
+
+    assert resultado["status"] == "completed"
+    mock_engine.click.assert_any_call(
+        "input[name='contractType'][value='CLT']", force=True
+    )
+
+
+def test_apply_tipo_contrato_vem_do_dados(mock_engine):
+    dados = {
+        "nome": "Rodrigo Exemplo",
+        "email": "rodrigo@exemplo.com",
+        "tipo_contrato": "PJ",
+    }
+
+    resultado = apply("inhire", "https://inhire.com/vaga/1", dados, "curriculo.pdf")
+
+    assert resultado["status"] == "completed"
+    mock_engine.click.assert_any_call(
+        "input[name='contractType'][value='PJ']", force=True
+    )
+
+
+def test_apply_contracttype_ausente_ignora_e_segue(mock_engine):
+    # Vaga sem a pergunta de tipo de contrato: o radio contractType não existe
+    mock_engine.max_attempts = 2
+    mock_engine.retry_delay = 0.0
+    mock_engine.exists.side_effect = lambda sel: "contractType" not in sel
+    dados = {"nome": "Rodrigo Exemplo", "email": "rodrigo@exemplo.com"}
+
+    resultado = apply("inhire", "https://inhire.com/vaga/1", dados, "curriculo.pdf")
+
+    assert resultado["status"] == "completed"
+    assert "tipo-contrato" in resultado["log"]
+    assert "ignorado" in resultado["log"]
+    clicks = [c.args[0] for c in mock_engine.click.call_args_list]
+    assert not any("contractType" in str(sel) for sel in clicks)

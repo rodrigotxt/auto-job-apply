@@ -232,6 +232,39 @@ def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
         logger.warning(msg)
 
 
+def _selecionar_tipo_contrato(engine: BrowserEngine, dados: dict):
+    """Seleciona o radio 'Tipo de contrato' (input[name='contractType']), ex.: CLT.
+
+    Valor vem de dados['tipo_contrato'] (ou 'contractType'); default CLT.
+    Só existe em algumas vagas: após as tentativas, se o campo não existir
+    (ou falhar), ignora e segue o fluxo (não aborta a candidatura).
+    """
+    valor = str(dados.get("tipo_contrato") or dados.get("contractType") or "CLT")
+    seletor = f"input[name='contractType'][value='{valor}']"
+    encontrado = False
+    for _ in range(engine.max_attempts):
+        if engine.exists(seletor):
+            encontrado = True
+            break
+        time.sleep(engine.retry_delay)
+    if not encontrado:
+        msg = (
+            f"[CAMPO-NAO-ENCONTRADO] tipo-contrato | valor='{valor}' | "
+            "obrigatorio=False | ignorado"
+        )
+        _emitir_campo(engine, "tipo-contrato", "nao-encontrado")
+        logger.warning(msg)
+        return
+    try:
+        engine.click(seletor, force=True)
+        _log_campo("tipo-contrato", "ok", f"seletor={seletor}")
+        _emitir_campo(engine, "tipo-contrato", "ok", seletor=seletor)
+    except Exception as e:
+        msg = f"[ERRO-CAMPO] tipo-contrato | seletor={seletor} | erro={e} | ignorado"
+        _emitir_campo(engine, "tipo-contrato", "erro", seletor=seletor)
+        logger.warning(msg)
+
+
 def _selecionar_indicacao(engine: BrowserEngine):
     seletor = _resolver_campo(engine, "indicacao_nao")
     if seletor is None:
@@ -450,6 +483,7 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
     _selecionar_cidade(engine, dados.get("cidade", "Sao Jose - SC"))
 
     _selecionar_disponibilidade(engine, dados.get("disponibilidade_presencial", "Sim"))
+    _selecionar_tipo_contrato(engine, dados)
 
     pretensao = _so_digitos(dados.get("pretensao_salarial", ""))
     if pretensao:
