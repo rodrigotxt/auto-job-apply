@@ -6,7 +6,7 @@ help:
 	@echo "  make test        - Roda todos os testes unitários com pytest"
 	@echo "  make lint        - Roda ruff para análise de código"
 	@echo "  make add-site NAME=<nome> - Cria scaffold para um novo site"
-	@echo "  make apply SITE=<nome> URL=<url> [DEBUG=1] - Roda automação (DEBUG=1: browser visível, delay 2s, aberto 10s ao final)"
+	@echo "  make apply [SITE=<nome>] [URL=<url>] [DEBUG=1] - Roda automação; interativo se SITE/URL ausentes (DEBUG=1: browser visível, não envia, aberto 10s ao final)"
 	@echo "  make demo [SITE=...] [URL=...] - Demonstra eventos de progresso e retorno (não envia)"
 	@echo "  make help        - Mostra esta ajuda"
 
@@ -32,14 +32,13 @@ add-site:
 	@echo "Site '$(NAME)' criado e registrado com sucesso."
 
 apply:
-	@if [ -z "$(SITE)" ] || [ -z "$(URL)" ]; then \
-		echo "Erro: SITE e URL são obrigatórios. Use: make apply SITE=nome URL=url"; \
-		exit 1; \
-	fi
 	@if [ ! -f "assets/curriculo.pdf" ]; then \
 		echo "Aviso: assets/curriculo.pdf não encontrado. O upload falhará."; \
 	fi
-	. .venv/bin/activate && python3 scripts/apply_cli.py "$(SITE)" "$(URL)" $(if $(DEBUG),--debug,)
+	. .venv/bin/activate && python3 scripts/apply_cli.py \
+		$(if $(SITE),--site "$(SITE)",) \
+		$(if $(URL),--url "$(URL)",) \
+		$(if $(filter 1 yes true on sim,$(DEBUG)),--debug,)
 
 demo:
 	@if [ -n "$(SITE)" ] && [ -n "$(URL)" ]; then \

@@ -36,6 +36,21 @@ make apply SITE=inhire URL=https://portal.inhire.app/vagas/<id>/<slug>
 
 Envia a candidatura de verdade. Os dados do candidato vêm de `assets/dados-de-candidatura.yaml` e o currículo de `assets/curriculo.pdf`.
 
+### Modo interativo
+
+```bash
+make apply
+```
+
+Se `SITE`/`URL` não forem passados, o comando pergunta interativamente:
+
+1. **Site** — lista os sites registrados (escolha por número ou nome);
+2. **URL da vaga** — validada como `http(s)://`;
+3. **Modo debug** — pergunta se quer rodar sem enviar (recomendado para validar);
+4. **Confirmação final** — no modo real, pede confirmação explícita antes de enviar (default é não).
+
+> Em modo não interativo (sem terminal, ex.: CI), `SITE` e `URL` continuam obrigatórios.
+
 ### Rodar em modo debug (não envia nada)
 
 ```bash
