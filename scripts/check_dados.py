@@ -18,7 +18,7 @@ import sys
 import yaml
 
 from auto_job_apply.registry import SITES_CAMPOS, SITES_REGISTRY
-from auto_job_apply.schema import SCHEMA, normalizar, sugerir_campos, validar
+from auto_job_apply.schema import SCHEMA, get_schema, normalizar, sugerir_campos, validar
 
 
 def main() -> int:
@@ -69,6 +69,7 @@ def _sugerir_para_site(site: str, dados: dict, erros: list[str]):
         return
 
     para_criar, para_preencher = sugerir_campos(site, dados)
+    obrigatorios = set(get_schema(site)["obrigatorios"])
 
     print(f"\nSite '{site}' usa {len(campos_declarados)} campo(s) do schema:")
     for c in campos_declarados:
@@ -78,7 +79,8 @@ def _sugerir_para_site(site: str, dados: dict, erros: list[str]):
             status = "no-yaml"
         else:
             status = "ok"
-        print(f"  · {c:<24} {status}")
+        marca = " (obrigatório)" if c in obrigatorios else ""
+        print(f"  · {c:<24} {status}{marca}")
 
     if para_criar:
         print("\n→ Campos usados pelo site que NÃO existem no schema (sugerir criação):")

@@ -10,7 +10,7 @@ from .progresso import (
     emitir_seguro,
 )
 from .registry import SITES_REGISTRY
-from .schema import normalizar
+from .schema import get_schema, normalizar
 
 logger = logging.getLogger(__name__)
 

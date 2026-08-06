@@ -344,6 +344,77 @@ def sugerir_campos(site: str, dados: dict[str, Any]) -> tuple[list[str], list[st
     return para_criar, para_preencher
 
 
+def get_schema(site: str) -> dict:
+    """Schema de dados que um site específico usa: campos e obrigatórios.
+
+    Combina o que o site declara em `@register_site(campos=..., obrigatorios=...)`
+    com o schema central (SCHEMA). Retorna um dict serializável (JSON-safe),
+    útil para o JobSpy/Celery, Makefile e documentação.
+
+    Args:
+        site: nome do site registrado (ex.: 'inhire', 'quickin').
+
+    Returns:
+        {
+            "site": nome do site,
+            "campos": [
+                {
+                    "chave": "full_name",
+                    "secao": "personal",
+                    "tipo": "str",
+                    "obrigatorio": True,   # efetivo: schema global OU site
+                    "descricao": ...,
+                    "exemplo": ...,
+                    "opcoes": [...],
+                    "no_schema": False,    # True = chave ainda não existe no SCHEMA
+                }, ...
+            ],
+            "obrigatorios": ["full_name", ...],  # chaves efetivamente obrigatórias
+            "campos_fora_do_schema": [...],  # chaves que precisam ser criadas em schema.py
+        }
+
+    Raises:
+        ValueError: site não registrado (lista os disponíveis).
+    """
+    from .registry import SITES_CAMPOS, SITES_OBRIGATORIOS, SITES_REGISTRY
+
+    if site not in SITES_REGISTRY:
+        raise ValueError(
+            f"Site '{site}' não registrado. Disponíveis: {sorted(SITES_REGISTRY)}"
+        )
+
+    obrigatorios_site = set(SITES_OBRIGATORIOS.get(site, []))
+    campos_fora_do_schema = [c for c in SITES_CAMPOS.get(site, []) if c not in SCHEMA]
+
+    campos = []
+    for chave in SITES_CAMPOS.get(site, []):
+        campo = SCHEMA.get(chave)
+        no_schema = campo is None
+        campos.append(
+            {
+                "chave": chave,
+                "secao": campo.secao if campo else "",
+                "tipo": campo.tipo if campo else "?",
+                "obrigatorio": (
+                    (campo is not None and campo.obrigatorio) or chave in obrigatorios_site
+                ),
+                "descricao": (
+                    campo.descricao if campo else "campo fora do schema (criar em schema.py)"
+                ),
+                "exemplo": campo.exemplo if campo else None,
+                "opcoes": list(campo.opcoes) if campo else [],
+                "no_schema": no_schema,
+            }
+        )
+
+    return {
+        "site": site,
+        "campos": campos,
+        "obrigatorios": [c["chave"] for c in campos if c["obrigatorio"]],
+        "campos_fora_do_schema": campos_fora_do_schema,
+    }
+
+
 def _validar_tipo(campo: Campo, valor: Any) -> str | None:
     if campo.tipo == "str":
         if not isinstance(valor, str):

@@ -517,7 +517,13 @@ def _relatar_campos_faltantes(engine: BrowserEngine):
         )
 
 
-@register_site("quickin", campos=_CAMPOS_USADOS)
+@register_site(
+    "quickin",
+    campos=_CAMPOS_USADOS,
+    # Além dos globais do schema (full_name, email): o form exige data de
+    # nascimento e o consentimento LGPD (aborta se ausentes).
+    obrigatorios=["birth_date", "consent"],
+)
 def apply_quickin(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_path: str) -> bool:
     """Implementação da automação Quickin (jobs.quickin.io)."""
     logger.info(f"[FLUXO] site=quickin | url={url_vaga}")

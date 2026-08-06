@@ -222,3 +222,86 @@ def test_apply_inhire_com_chaves_inglesas(mock_engine):
 
 def test_registry_tem_quickin_e_inhire():
     assert {"quickin", "inhire"} <= set(SITES_REGISTRY)
+
+
+# ---------------------------------------------------------------------------
+# get_schema
+# ---------------------------------------------------------------------------
+def test_get_schema_quickin_campos_e_obrigatorios():
+    from auto_job_apply.schema import get_schema
+
+    info = get_schema("quickin")
+
+    assert info["site"] == "quickin"
+    chaves = [c["chave"] for c in info["campos"]]
+    assert "full_name" in chaves
+    assert "email" in chaves
+    assert "birth_date" in chaves
+    assert "consent" in chaves
+    assert info["campos_fora_do_schema"] == []
+
+    # Obrigatórios efetivos: globais do schema + os do site
+    for obrig in ("full_name", "email", "birth_date", "consent"):
+        assert obrig in info["obrigatorios"]
+
+    by_key = {c["chave"]: c for c in info["campos"]}
+    assert by_key["full_name"]["obrigatorio"] is True
+    assert by_key["full_name"]["tipo"] == "str"
+    assert by_key["full_name"]["secao"] == "personal"
+    assert by_key["full_name"]["exemplo"] == "Maria Silva"
+    assert by_key["consent"]["obrigatorio"] is True
+    assert by_key["phone"]["obrigatorio"] is False
+    assert by_key["phone"]["no_schema"] is False
+    assert by_key["birth_date"]["tipo"] == "date"
+
+
+def test_get_schema_inhire_obrigatorios_globais():
+    from auto_job_apply.schema import get_schema
+
+    info = get_schema("inhire")
+
+    by_key = {c["chave"]: c for c in info["campos"]}
+    assert by_key["full_name"]["obrigatorio"] is True
+    assert by_key["email"]["obrigatorio"] is True
+    # Site não declarou obrigatorios próprios: os demais são opcionais
+    assert by_key["linkedin_url"]["obrigatorio"] is False
+    assert by_key["salary_expectation"]["obrigatorio"] is False
+
+
+def test_get_schema_sem_campos_declarados():
+    from auto_job_apply.schema import get_schema
+
+    info = get_schema("gupy")  # registrado sem campos=
+
+    assert info["campos"] == []
+    assert info["obrigatorios"] == []
+    assert info["campos_fora_do_schema"] == []
+
+
+def test_get_schema_site_desconhecido_levanta():
+    from auto_job_apply.schema import get_schema
+
+    with pytest.raises(ValueError, match="não registrado"):
+        get_schema("site-que-nao-existe")
+
+
+def test_get_schema_campo_fora_do_schema():
+    from auto_job_apply.registry import register_site
+    from auto_job_apply.schema import get_schema
+
+    @register_site(
+        "site-teste-schema",
+        campos=["full_name", "campo_futuro"],
+        obrigatorios=["campo_futuro"],
+    )
+    def _fake(engine, url, dados, curriculo_path):  # noqa: ARG001
+        return True
+
+    info = get_schema("site-teste-schema")
+
+    by_key = {c["chave"]: c for c in info["campos"]}
+    assert by_key["campo_futuro"]["no_schema"] is True
+    assert by_key["campo_futuro"]["obrigatorio"] is True  # declarado pelo site
+    assert by_key["campo_futuro"]["tipo"] == "?"
+    assert info["campos_fora_do_schema"] == ["campo_futuro"]
+    assert "campo_futuro" in info["obrigatorios"]

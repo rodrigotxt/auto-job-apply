@@ -85,3 +85,43 @@ make check-dados SITE=quickin # + campos que o quickin usa
 A validação também roda de forma automática durante a candidatura: se o site
 pedir um campo inexistente, o `obter()` loga `[SCHEMA-SUGESTAO]` apontando o
 que criar.
+
+## Schema de um site específico (`get_schema`)
+
+`get_schema(site)` retorna o schema de dados daquele site: a lista de
+campos que ele usa, com metadados completos, e quais são **obrigatórios**
+(efetivos: obrigatórios globais do schema + os declarados pelo site). O
+retorno é um dict serializável (JSON-safe) — pronto para o JobSpy/Celery e
+para a interface do Makefile.
+
+```python
+from auto_job_apply import get_schema
+
+info = get_schema("quickin")
+info["obrigatorios"]          # ["full_name", "birth_date", "email", "consent"]
+for c in info["campos"]:
+    print(c["chave"], c["tipo"], "obrigatório" if c["obrigatorio"] else "opcional")
+```
+
+Campos que o site usa mas ainda não existem no `SCHEMA` entram com
+`no_schema: true` e são listados em `campos_fora_do_schema` (sinal de que
+precisam ser criados em `schema.py`).
+
+### Declarando obrigatórios de um site
+
+Além dos globais do schema (`full_name`, `email`), um site pode declarar no
+decorator quais campos ele **exige** (form marca como required; o fluxo
+aborta se faltarem):
+
+```python
+@register_site(
+    "meu_site",
+    campos=["full_name", "email", "birth_date", "consent"],
+    obrigatorios=["birth_date", "consent"],  # soma aos globais
+)
+def apply_meu_site(engine, url_vaga, dados, curriculo_path) -> bool:
+    ...
+```
+
+`make check-dados SITE=meu_site` marca esses campos com `(obrigatório)` na
+listagem.
