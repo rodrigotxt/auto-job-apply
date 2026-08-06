@@ -1,4 +1,4 @@
-.PHONY: up test lint add-site apply demo help
+.PHONY: up test lint add-site apply check-dados demo help
 
 help:
 	@echo "Comandos disponíveis:"
@@ -6,6 +6,7 @@ help:
 	@echo "  make test        - Roda todos os testes unitários com pytest"
 	@echo "  make lint        - Roda ruff para análise de código"
 	@echo "  make add-site NAME=<nome> - Cria scaffold para um novo site"
+	@echo "  make check-dados [SITE=<nome>] - Valida o YAML contra o schema e sugere campos faltantes (SITE lista os campos que o site usa)"
 	@echo "  make apply [SITE=<nome>] [URL=<url>] [DEBUG=1] - Roda automação; interativo se SITE/URL ausentes (DEBUG=1: browser visível, não envia, aberto 10s ao final)"
 	@echo "  make demo [SITE=...] [URL=...] - Demonstra eventos de progresso e retorno (não envia)"
 	@echo "  make help        - Mostra esta ajuda"
@@ -39,6 +40,10 @@ apply:
 		$(if $(SITE),--site "$(SITE)",) \
 		$(if $(URL),--url "$(URL)",) \
 		$(if $(filter 1 yes true on sim,$(DEBUG)),--debug,)
+
+check-dados:
+	. .venv/bin/activate && python3 scripts/check_dados.py \
+		$(if $(SITE),--site "$(SITE)",)
 
 demo:
 	@if [ -n "$(SITE)" ] && [ -n "$(URL)" ]; then \

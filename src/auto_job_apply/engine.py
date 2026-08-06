@@ -26,7 +26,10 @@ class BrowserEngine:
         self.on_progress = on_progress
         self.playwright = sync_playwright().start()
         self.browser: Browser = self.playwright.chromium.launch(headless=self.headless)
-        self.context: BrowserContext = self.browser.new_context()
+        # Locale pt-BR: os sites alvo (quickin, inhire, gupy...) servem UI em
+        # português conforme o Accept-Language; sem isso o Chromium envia en-US
+        # e o texto dos botões muda (ex.: "Apply" em vez de "Candidatar").
+        self.context: BrowserContext = self.browser.new_context(locale="pt-BR")
         self.page: Page = self.context.new_page()
 
     def emitir(self, status: str, etapa: str, **kwargs):
@@ -186,6 +189,15 @@ class BrowserEngine:
             self.page.click(selector, timeout=3000, force=force)
 
         self._retry(_click, max_attempts=attempts)
+        self._pause()
+
+    def select_option(self, selector: str, value: str):
+        """Seleciona uma opção em <select> nativo pelo value."""
+
+        def _select():
+            self.page.select_option(selector, value=value, timeout=3000)
+
+        self._retry(_select)
         self._pause()
 
     def check(self, selector: str):

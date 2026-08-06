@@ -10,11 +10,12 @@ from .progresso import (
     emitir_seguro,
 )
 from .registry import SITES_REGISTRY
+from .schema import normalizar
 
 logger = logging.getLogger(__name__)
 
 # Importar módulos de sites para garantir que o registro ocorra
-from .sites import gupy, inhire  # noqa: E402,F401
+from .sites import gupy, inhire, quickin  # noqa: E402,F401
 
 
 def apply(
@@ -62,6 +63,8 @@ def apply(
     with capturar_log() as stream:
         try:
             emitir_seguro(on_progress, STATUS_PROCESSING, "started", site=site, url=url_vaga)
+            # Padroniza as chaves do YAML (aliases pt→en) antes de chegar ao site
+            dados = normalizar(dados)
             SITES_REGISTRY[site](engine, url_vaga, dados, curriculo_path)
             duracao = round(time.time() - inicio, 2)
             emitir_seguro(on_progress, STATUS_COMPLETED, "concluido", duracao_seg=duracao)

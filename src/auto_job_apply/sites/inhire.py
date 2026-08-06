@@ -4,6 +4,7 @@ import time
 from ..engine import BrowserEngine
 from ..progresso import STATUS_PROCESSING
 from ..registry import register_site
+from ..schema import normalizar, obter
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,27 @@ class SubmitBloqueadoError(RuntimeError):
     """Botão de submit não habilitou ao final do fluxo (campo obrigatório pendente)."""
 
 
+# Campos de dados_candidatura (schema.py) usados por este site.
+_CAMPOS_USADOS = [
+    "full_name",
+    "cpf",
+    "email",
+    "phone",
+    "linkedin_url",
+    "country",
+    "city",
+    "work_model",
+    "contract_type",
+    "salary_expectation",
+    "referral",
+    "gender_identity",
+    "sexual_orientation",
+    "race_ethnicity",
+    "disability_identity",
+    "consent",
+]
+
+
 def _so_digitos(valor) -> str:
     """Remove tudo que não for dígito."""
     return "".join(c for c in str(valor) if c.isdigit())
@@ -65,9 +87,9 @@ def _so_digitos(valor) -> str:
 
 def _exigir_nome_completo(dados: dict) -> str:
     """Valida que o candidato informou nome e sobrenome."""
-    nome = str(dados.get("nome", "")).strip()
+    nome = str(obter(dados, "full_name", "")).strip()
     if len(nome.split()) < 2:
-        raise ValueError("Campo 'nome' deve conter nome e sobrenome (ex.: 'Maria Silva').")
+        raise ValueError("Campo 'full_name' deve conter nome e sobrenome (ex.: 'Maria Silva').")
     return nome
 
 
@@ -200,6 +222,41 @@ def _preencher_pretensao_salarial(engine: BrowserEngine, valor: str):
         _emitir_campo(engine, "pretensao-salarial", "erro", seletor=seletor)
 
 
+def _mapear_work_model(valor: str) -> str:
+    """Converte work_model (remote/hybrid/onsite, sim/não) para Sim/Não.
+
+    O form inhire pergunta "Disponibilidade para trabalho presencial" com
+    Sim/Não. Quem aceita presencial (ou híbrido) responde Sim; remoto
+    estrito responde Não. Default: Sim (disponível para presencial).
+    """
+    v = str(valor).strip().lower()
+    if v in ("nao", "não", "no", "false", "remote", "remoto"):
+        return "Não"
+    return "Sim"
+
+
+def _texto_diversidade(
+    dados: dict, chave: str, default_texto: str = "Prefiro não responder"
+) -> str:
+    """Resolve o texto da opção de diversidade no dropdown do form.
+
+    Valores do schema (prefer_not_to_say, male, female, no, yes...) são
+    convertidos para o texto exibido; qualquer outro valor é usado como o
+    texto da opção diretamente.
+    """
+    valor = str(obter(dados, chave, "")).strip().lower()
+    if not valor:
+        return default_texto
+    if valor in ("prefer_not_to_say", "prefiro não responder", "prefiro nao responder"):
+        return "Prefiro não responder"
+    if chave == "disability_identity":
+        if valor in ("no", "não", "nao"):
+            return "Não"
+        if valor in ("yes", "sim"):
+            return "Sim"
+    return str(obter(dados, chave))
+
+
 def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
     """Seleciona o radio 'Disponibilidade para trabalho presencial' (workModel).
 
@@ -235,11 +292,11 @@ def _selecionar_disponibilidade(engine: BrowserEngine, valor: str):
 def _selecionar_tipo_contrato(engine: BrowserEngine, dados: dict):
     """Seleciona o radio 'Tipo de contrato' (input[name='contractType']), ex.: CLT.
 
-    Valor vem de dados['tipo_contrato'] (ou 'contractType'); default CLT.
+    Valor vem de dados['contract_type'] (padrão do schema); default CLT.
     Só existe em algumas vagas: após as tentativas, se o campo não existir
     (ou falhar), ignora e segue o fluxo (não aborta a candidatura).
     """
-    valor = str(dados.get("tipo_contrato") or dados.get("contractType") or "CLT")
+    valor = str(obter(dados, "contract_type", "CLT") or "CLT")
     seletor = f"input[name='contractType'][value='{valor}']"
     encontrado = False
     for _ in range(engine.max_attempts):
@@ -463,10 +520,11 @@ def marcar_checkbox_por_texto(engine: BrowserEngine, texto: str, label: str = "c
         _emitir_campo(engine, label, "erro", seletor=selector)
 
 
-@register_site("inhire")
+@register_site("inhire", campos=_CAMPOS_USADOS)
 def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_path: str) -> bool:
     """Implementação da automação inHire."""
     logger.info(f"[FLUXO] site=inhire | url={url_vaga}")
+    dados = normalizar(dados)
     engine.navigate(url_vaga)
     engine.emitir(STATUS_PROCESSING, "navegacao", status_campo="ok")
 
@@ -474,18 +532,18 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
     nome = _exigir_nome_completo(dados)
     _preencher_campo(engine, "nome", nome, obrigatorio=True)
 
-    _preencher_campo(engine, "cpf", _so_digitos(dados.get("cpf", "")))
-    _preencher_campo(engine, "email", dados.get("email", ""))
-    _preencher_campo(engine, "telefone", _so_digitos(dados.get("telefone", "")))
-    _preencher_campo(engine, "linkedin", dados.get("linkedin", ""))
+    _preencher_campo(engine, "cpf", _so_digitos(obter(dados, "cpf", "")))
+    _preencher_campo(engine, "email", obter(dados, "email", ""))
+    _preencher_campo(engine, "telefone", _so_digitos(obter(dados, "phone", "")))
+    _preencher_campo(engine, "linkedin", obter(dados, "linkedin_url", ""))
 
     _selecionar_pais(engine)
-    _selecionar_cidade(engine, dados.get("cidade", "Sao Jose - SC"))
+    _selecionar_cidade(engine, obter(dados, "city", "Sao Jose - SC"))
 
-    _selecionar_disponibilidade(engine, dados.get("disponibilidade_presencial", "Sim"))
+    _selecionar_disponibilidade(engine, _mapear_work_model(obter(dados, "work_model", "Sim")))
     _selecionar_tipo_contrato(engine, dados)
 
-    pretensao = _so_digitos(dados.get("pretensao_salarial", ""))
+    pretensao = _so_digitos(obter(dados, "salary_expectation", ""))
     if pretensao:
         _preencher_pretensao_salarial(engine, pretensao)
 
@@ -500,19 +558,28 @@ def apply_inhire(engine: BrowserEngine, url_vaga: str, dados: dict, curriculo_pa
         # Aba diversidade — tudo opcional, "Prefiro não responder" por padrão
         marcar_checkbox_por_texto(engine, "Prefiro não responder", label="diversityGroup")
         selecionar_react_dropdown(
-            engine, "questionsDiversity.genderIdentity", "Prefiro não responder", label="genero"
+            engine,
+            "questionsDiversity.genderIdentity",
+            _texto_diversidade(dados, "gender_identity"),
+            label="genero",
         )
         selecionar_react_dropdown(
             engine,
             "questionsDiversity.sexualOrientation",
-            "Prefiro não responder",
+            _texto_diversidade(dados, "sexual_orientation"),
             label="orientacao",
         )
         selecionar_react_dropdown(
-            engine, "questionsDiversity.colourAndEthnicity", "Prefiro não responder", label="raca"
+            engine,
+            "questionsDiversity.colourAndEthnicity",
+            _texto_diversidade(dados, "race_ethnicity"),
+            label="raca",
         )
         selecionar_react_dropdown(
-            engine, "questionsDiversity.peopleWithDisability", "Não", label="pcd"
+            engine,
+            "questionsDiversity.peopleWithDisability",
+            _texto_diversidade(dados, "disability_identity", "Não"),
+            label="pcd",
         )
 
         _marcar_privacidade(engine)

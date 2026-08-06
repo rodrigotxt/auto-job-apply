@@ -19,7 +19,8 @@ Fornecer uma interface unificada (`apply`) para automatizar a submissão de curr
 
 ## Documentação
 
-- [`docs/testes-vagas.md`](docs/testes-vagas.md) — matriz de validação com vagas reais (inHire).
+- [`docs/schema-dados.md`](docs/schema-dados.md) — padrão de dados do candidato (chaves em inglês) e como contribuir com campos novos.
+- [`docs/testes-vagas.md`](docs/testes-vagas.md) — matriz de validação com vagas reais (inHire, Quickin).
 
 ## Quick start
 
